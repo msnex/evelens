@@ -1,0 +1,15 @@
+[runtime]
+worker_threads = 4
+
+[log]
+# valid values: stdout, file
+writer = "stdout"
+# valid values: trace, debug, info, warn, error, off
+level = "info"
+
+[log.file]
+# valid values: minutely, hourly, daily, weekly, never
+rotation = "daily"
+max_log_files = 5
+directory = "/tmp"
+filename = "evelens.log"

@@ -1,0 +1,20 @@
+// Project-local debug tasks
+//
+// For more documentation on how to configure debug tasks,
+// see: https://zed.dev/docs/debugger
+
+[
+  {
+    "label": "Build & Debug evelog",
+    "adapter": "CodeLLDB",
+    "request": "launch",
+    "build": {
+      "command": "cargo",
+      "args": ["build", "-p", "evelog"],
+    },
+    "program": "$ZED_WORKTREE_ROOT/target/debug/evelog",
+    "args": ["-c", "$ZED_WORKTREE_ROOT/evelog/evelog.toml"],
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "sourceLanguages": ["rust"],
+  },
+]
