@@ -1,5 +1,27 @@
+[eve]
+# redis or file
+source = "redis"
+
+[eve.redis]
+url = "redis://127.0.0.1/"
+key = "suricata"
+cmd = "rpop"
+batch_size = 50
+worker_threads = 2
+
+[eve.file]
+filename = "/var/log/suricata/eve.json"
+
+[clickhouse]
+url = "http://127.0.0.1:8123"
+database = "evelens"
+user = "eve"
+password = "change-me"
+batch_size = 10000
+flush_interval_ms = 1000
+
 [runtime]
-worker_threads = 4
+worker_threads = 2
 
 [log]
 # valid values: stdout, file
