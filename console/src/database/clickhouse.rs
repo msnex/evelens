@@ -22,7 +22,6 @@ pub async fn init_clickhouse_db(cfg: &ClickhouseCfg) -> Result<()> {
     Ok(())
 }
 
-#[allow(dead_code)]
 pub fn get_clickhouse_client() -> Client {
     DB.get().expect("Database not initialized").clone()
 }

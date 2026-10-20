@@ -37,3 +37,5 @@ node_modules
 # AGENTS
 .claude
 .codegraph
+# Playwright CLI output (may contain credentials)
+.playwright-cli/

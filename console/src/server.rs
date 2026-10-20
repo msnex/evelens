@@ -4,9 +4,12 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tower_http::services::ServeDir;
+use tower_http::trace::TraceLayer;
 use tracing::{error, info};
 
-mod routes;
+mod error;
+mod handler;
+mod router;
 
 pub fn get_web_dist_dir() -> Result<String> {
     if let Ok(dir) = std::env::var("WEB_DIST_DIR") {
@@ -50,7 +53,10 @@ pub async fn start_server(
     shutdown: Arc<tokio::sync::Notify>,
 ) -> Result<()> {
     let static_service = ServeDir::new(&dist_dir);
-    let app = Router::new().fallback_service(static_service);
+    let app = Router::new()
+        .merge(router::router())
+        .fallback_service(static_service)
+        .layer(TraceLayer::new_for_http());
 
     info!("Serving dist files from: {}", dist_dir);
 

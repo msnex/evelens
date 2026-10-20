@@ -37,6 +37,43 @@ pub mod u64_as_string {
     }
 }
 
+/// Serde helper: serialize i64 as a string in human-readable formats.
+pub mod i64_as_string {
+    use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
+
+    pub fn serialize<S>(value: &i64, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        if serializer.is_human_readable() {
+            serializer.serialize_str(&value.to_string())
+        } else {
+            value.serialize(serializer)
+        }
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<i64, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        if !deserializer.is_human_readable() {
+            return i64::deserialize(deserializer);
+        }
+
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum NumOrStr {
+            Num(i64),
+            Str(String),
+        }
+
+        match NumOrStr::deserialize(deserializer)? {
+            NumOrStr::Num(n) => Ok(n),
+            NumOrStr::Str(s) => s.parse::<i64>().map_err(serde::de::Error::custom),
+        }
+    }
+}
+
 pub mod option_u64_as_string {
     use serde::{self, Deserialize, Deserializer};
 

@@ -9,7 +9,7 @@
    - Clickhouse
    - Ant Design
 
-## 项目结构
+### 项目结构
 
 | 目录             | 描述                           |
 | ---------------- | ------------------------------ |
@@ -22,17 +22,27 @@
 | console          | Web Server                     |
 | web              | Frontend powered by Ant Design |
 
-## Lint
+### Lint
 
-Run `clippy` to catch common mistakes and improve your Rust code.
+Run lint tools to catch common mistakes and improve your code.
 
 ```bash
+# web
+pnpm --prefix web lint
+# rust
 cargo clippy --workspace --all-targets
 ```
 
-## Build and test
+### Build and test
 
 ```bash
+# web
+pnpm --prefix web build
+# rust
 cargo build --workspace --all-targets
 cargo test --workspace --all-targets
 ```
+
+## Web 前端
+
+- 国际化：简体中文（默认）、英文，支持客户端语言自动检测与切换持久化
