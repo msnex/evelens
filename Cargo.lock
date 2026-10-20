@@ -350,6 +350,7 @@ dependencies = [
  "config",
  "ctrlc",
  "elog",
+ "eveschema",
  "serde",
  "serde_json",
  "tokio",

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" fill="none" role="img" aria-labelledby="title">
+  <title id="title">Evelens</title>
+  <defs>
+    <linearGradient id="tile" x1="6" y1="4" x2="42" y2="44" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1677ff"/>
+      <stop offset="1" stop-color="#0958d9"/>
+    </linearGradient>
+    <linearGradient id="pulse" x1="8" y1="24" x2="40" y2="24" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#b5f5ec"/>
+      <stop offset="1" stop-color="#ffffff"/>
+    </linearGradient>
+  </defs>
+  <rect width="48" height="48" rx="10" fill="url(#tile)"/>
+  <circle cx="24" cy="24" r="12.25" stroke="#ffffff" stroke-opacity="0.95" stroke-width="2.5"/>
+  <path d="M24 12.5L34.2 18.25V29.75L24 35.5L13.8 29.75V18.25L24 12.5Z" stroke="#ffffff" stroke-opacity="0.72" stroke-width="1.7" stroke-linejoin="round"/>
+  <path d="M8 24H16.4L19.5 18.2L23.6 29.4L27 22.3L28.8 24H40" stroke="url(#pulse)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -3,6 +3,7 @@ use anyhow::{Context, Result, bail};
 use std::sync::Arc;
 use tracing::{error, info};
 
+mod alert;
 mod args;
 mod config;
 mod database;

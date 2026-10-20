@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 use uuid::Uuid;
 
+pub const TX_ID_MISSING: u64 = u64::MAX;
+
 pub const EVE_ALERT_SCHEMA_CREATE_SQL: &str = concat!(
     "CREATE TABLE IF NOT EXISTS eve_alert_log (",
     " id UUID,",
@@ -22,7 +24,7 @@ pub const EVE_ALERT_SCHEMA_CREATE_SQL: &str = concat!(
     " icmp_type UInt8 DEFAULT 0,",
     " icmp_code UInt8 DEFAULT 0,",
     " pkt_src LowCardinality(String) DEFAULT '',",
-    " tx_id UInt64 DEFAULT 0,",
+    " tx_id UInt64 DEFAULT 18446744073709551615,",
     " app_proto LowCardinality(String) DEFAULT '',",
     " action LowCardinality(String) DEFAULT '',",
     " signature_id UInt32 DEFAULT 0,",
@@ -209,7 +211,7 @@ impl TryFrom<EveJsonSchema> for EveAlertSchema {
             host: host.unwrap_or_default(),
             src_mac,
             dst_mac,
-            vlan: vlan.map(Vec::from).unwrap_or_default(),
+            vlan: vlan.unwrap_or_default(),
             src_ip: src_ip.unwrap_or_default(),
             src_port: src_port.unwrap_or(0),
             dst_ip: dest_ip.unwrap_or_default(),
@@ -218,7 +220,7 @@ impl TryFrom<EveJsonSchema> for EveAlertSchema {
             icmp_type: icmp_type.unwrap_or(0),
             icmp_code: icmp_code.unwrap_or(0),
             pkt_src,
-            tx_id: tx_id.unwrap_or(0),
+            tx_id: tx_id.unwrap_or(TX_ID_MISSING),
             app_proto: app_proto.unwrap_or_default(),
             action,
             signature_id,
@@ -240,4 +242,8 @@ impl TryFrom<EveJsonSchema> for EveAlertSchema {
             tc_bytes,
         })
     }
+}
+
+pub fn is_tx_id_missing(value: &u64) -> bool {
+    *value == TX_ID_MISSING
 }

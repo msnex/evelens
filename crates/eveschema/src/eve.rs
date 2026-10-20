@@ -18,7 +18,7 @@ pub struct EveJsonSchema {
     pub parent_id: Option<u64>,
     pub in_iface: Option<String>,
     pub event_type: String,
-    pub vlan: Option<[u16; 3]>,
+    pub vlan: Option<Vec<u16>>,
     pub src_ip: Option<String>,
     pub src_port: Option<u16>,
     pub dest_ip: Option<String>,
