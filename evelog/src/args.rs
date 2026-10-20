@@ -3,7 +3,7 @@ use clap::Parser;
 static ARGS: std::sync::OnceLock<Args> = std::sync::OnceLock::new();
 
 #[derive(Debug, clap::Parser)]
-#[command(version, about = "evelens", long_about = None)]
+#[command(version, about = "evelog: eve log agent for suricata", long_about = None)]
 pub struct Args {
     #[arg(short, long, help = "Config file")]
     pub config: String,

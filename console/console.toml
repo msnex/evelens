@@ -1,0 +1,24 @@
+[server]
+address = "0.0.0.0:5080"
+
+[clickhouse]
+url = "http://127.0.0.1:8123"
+database = "evelens"
+user = "eve"
+password = "change-me"
+
+[runtime]
+worker_threads = 4
+
+[log]
+# valid values: stdout, file
+writer = "stdout"
+# valid values: trace, debug, info, warn, error, off
+level = "info"
+
+[log.file]
+# valid values: minutely, hourly, daily, weekly, never
+rotation = "daily"
+max_log_files = 5
+directory = "/tmp"
+filename = "console.log"
