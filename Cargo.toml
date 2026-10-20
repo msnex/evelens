@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/*", "evelog"]
+members = ["console","crates/*", "evelog"]
 
 [workspace.dependencies]
 anyhow = "1.0.104"

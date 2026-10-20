@@ -3,7 +3,7 @@ use anyhow::{Result, bail};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::JoinHandle;
 use std::time::Duration;
-use tracing::{debug, error, info};
+use tracing::{error, info};
 
 mod affinity;
 mod args;
@@ -58,8 +58,6 @@ fn init_ctrlc() -> Result<()> {
 
 fn global_init(config: &Config) -> Result<()> {
     elog::init_log(&config.log)?;
-    debug!("config: {:?}", config);
-
     init_ctrlc()?;
 
     Ok(())
