@@ -39,3 +39,4 @@ node_modules
 .codegraph
 # Playwright CLI output (may contain credentials)
 .playwright-cli/
+.playwright/

@@ -1,5 +1,5 @@
 use crate::alert::model::{
-    AlertCategories, AlertFilter, AlertFilterOperator, AlertPage, AlertProtos, AlertRow,
+    AlertCategories, AlertFilter, AlertFilterOperator, AlertPage, AlertProtos, AlertRow, Severity,
 };
 use crate::database::clickhouse::get_clickhouse_client;
 use anyhow::Result;
@@ -102,6 +102,12 @@ fn bind_filter_values(mut query: Query, filters: &[AlertFilter]) -> Query {
         for value in &filter.values {
             if filter.field.is_port() {
                 query = query.bind(value.parse::<u16>().expect("port values are validated"));
+            } else if filter.field.is_severity() {
+                query = query.bind(
+                    Severity::from_str(value)
+                        .expect("severity values are validated")
+                        .as_i32(),
+                );
             } else {
                 query = query.bind(value.as_str());
             }
@@ -142,8 +148,8 @@ pub async fn query_alerts(
          src_ip, src_port, dst_ip, dst_port, proto, icmp_type, icmp_code, \
          pkt_src, tx_id, app_proto, action, signature_id, signature, category, \
          severity, rule, xff, http_method, http_url, http_protocol, \
-         http_req_hdr, http_resp_hdr, http_req_body, http_resp_body, \
-         ts_pkts, tc_pkts, ts_bytes, tc_bytes \
+         http_status, http_req_hdr, http_resp_hdr, http_req_body, http_resp_body, \
+         http_resp_line, ts_pkts, tc_pkts, ts_bytes, tc_bytes \
          FROM eve_alert_log WHERE {ALERT_TIME_FILTER}{filter_sql} \
          ORDER BY eve_alert_log.timestamp DESC LIMIT ? OFFSET ?"
     );
@@ -213,5 +219,19 @@ mod tests {
     #[test]
     fn build_filter_clause_is_empty_without_filters() {
         assert_eq!(build_filter_clause(&[]), "");
+    }
+
+    #[test]
+    fn build_filter_clause_handles_severity() {
+        let filters = vec![filter(
+            AlertFilterField::Severity,
+            AlertFilterOperator::In,
+            &["high", "medium"],
+        )];
+
+        assert_eq!(
+            build_filter_clause(&filters),
+            "eve_alert_log.severity IN (?, ?)"
+        );
     }
 }

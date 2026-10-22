@@ -60,8 +60,10 @@ pub struct Http {
     pub http_method: Option<String>,
     pub url: Option<String>,
     pub protocol: Option<String>,
+    pub status: Option<u16>,
     pub http_request_header: Option<String>,
     pub http_response_header: Option<String>,
+    pub http_response_line: Option<String>,
     pub http_request_body: Option<String>,
     pub http_response_body: Option<String>,
 }

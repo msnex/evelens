@@ -1,19 +1,26 @@
-import { App as AntdApp, Button, Empty, Table, Tooltip } from 'antd'
+import { App as AntdApp, Button, Empty, Table, Tag, Tooltip } from 'antd'
 import type { TablePaginationConfig, TableProps } from 'antd'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   fetchAlertCategories,
   fetchAlertProtos,
   fetchAlerts,
 } from '../../api/alerts.ts'
 import { useI18n } from '../../i18n/index.ts'
-import type { AlertFilter, AlertPage, AlertRow } from '../../types/alert.ts'
+import type {
+  AlertFilter,
+  AlertPage,
+  AlertRow,
+  AlertSeverity,
+} from '../../types/alert.ts'
 import {
   formatAppProto,
   formatPort,
   formatText,
   formatTimestamp,
 } from '../../utils/format.ts'
+import { getSeverityOption } from '../../utils/severity.ts'
+import { AlertDetailDrawer } from './AlertDetailDrawer.tsx'
 import { AlertFilterBar } from './AlertFilterBar.tsx'
 import { alertFilterKey, isSameAlertFilter } from './filter.ts'
 import { TimeRangeFilter } from './TimeRangeFilter.tsx'
@@ -75,6 +82,10 @@ export function AlertLogPage() {
   const [loadError, setLoadError] = useState(false)
   const [reloadToken, setReloadToken] = useState(0)
   const [filters, setFilters] = useState<AlertFilter[]>([])
+  const [selectedAlert, setSelectedAlert] = useState<AlertRow | null>(null)
+  const [navigation, setNavigation] = useState<
+    'previous' | 'next' | null
+  >(null)
   const [protoOptions, setProtoOptions] = useState<string[]>([])
   const [appProtoOptions, setAppProtoOptions] = useState<string[]>([])
   const [categoryOptions, setCategoryOptions] = useState<string[]>([])
@@ -86,10 +97,19 @@ export function AlertLogPage() {
     `${locale}:${pageSize}:${data.total}:${loadError ? 'error' : 'data'}:${loading ? 'loading' : 'idle'}:${filters.length}`,
   )
   const tRef = useRef(t)
+  const navigationAbortRef = useRef<AbortController | null>(null)
+  const skipPageFetchRef = useRef<number | null>(null)
 
   useEffect(() => {
     tRef.current = t
   }, [t])
+
+  useEffect(
+    () => () => {
+      navigationAbortRef.current?.abort()
+    },
+    [],
+  )
 
   useEffect(() => {
     const controller = new AbortController()
@@ -152,6 +172,11 @@ export function AlertLogPage() {
   }, [message, range.end, range.start])
 
   useEffect(() => {
+    if (skipPageFetchRef.current === page) {
+      skipPageFetchRef.current = null
+      return
+    }
+
     const controller = new AbortController()
     let active = true
 
@@ -200,8 +225,23 @@ export function AlertLogPage() {
     t,
   ])
 
+  const handleOpenAlert = useCallback((alert: AlertRow) => {
+    navigationAbortRef.current?.abort()
+    navigationAbortRef.current = null
+    setNavigation(null)
+    setSelectedAlert(alert)
+  }, [])
+
   const columns = useMemo<TableProps<AlertRow>['columns']>(
     () => [
+      {
+        title: t('columns.index'),
+        key: 'index',
+        width: 70,
+        align: 'center',
+        render: (_value, _record, index) =>
+          (page - 1) * pageSize + index + 1,
+      },
       {
         title: t('columns.signature'),
         dataIndex: 'signature',
@@ -212,6 +252,16 @@ export function AlertLogPage() {
             <span className="alert-signature-text">{value}</span>
           </Tooltip>
         ),
+      },
+      {
+        title: t('columns.severity'),
+        dataIndex: 'severity',
+        key: 'severity',
+        width: 100,
+        render: (value: AlertSeverity) => {
+          const severity = getSeverityOption(value)
+          return <Tag color={severity.color}>{t(severity.labelKey)}</Tag>
+        },
       },
       {
         title: t('columns.srcIp'),
@@ -264,11 +314,30 @@ export function AlertLogPage() {
         width: 200,
         render: (value: string) => formatTimestamp(value),
       },
+      {
+        title: t('columns.action'),
+        key: 'actions',
+        width: 90,
+        fixed: 'right',
+        render: (_value, record) => (
+          <Button
+            size="small"
+            type="link"
+            onClick={() => handleOpenAlert(record)}
+          >
+            {t('detail.view')}
+          </Button>
+        ),
+      },
     ],
-    [t],
+    [handleOpenAlert, page, pageSize, t],
   )
 
   const totalValue = parseTotal(data.total)
+  const totalPages =
+    totalValue > 0n
+      ? Number((totalValue + BigInt(pageSize) - 1n) / BigInt(pageSize))
+      : 0
   const paginationTotal =
     totalValue <= BigInt(Number.MAX_SAFE_INTEGER)
       ? Number(totalValue)
@@ -308,6 +377,91 @@ export function AlertLogPage() {
       setLoadError(false)
       setPage(nextPage)
     }
+  }
+
+  const selectedAlertIndex = selectedAlert
+    ? data.items.findIndex((item) => item.id === selectedAlert.id)
+    : -1
+  const canPreviousAlert =
+    selectedAlert !== null &&
+    (selectedAlertIndex > 0 || page > DEFAULT_PAGE)
+  const canNextAlert =
+    selectedAlert !== null &&
+    ((selectedAlertIndex >= 0 &&
+      selectedAlertIndex < data.items.length - 1) ||
+      page < totalPages)
+
+  const goToAdjacentAlert = async (direction: -1 | 1) => {
+    if (!selectedAlert || navigation !== null || navigationAbortRef.current) {
+      return
+    }
+
+    const currentIndex = data.items.findIndex(
+      (item) => item.id === selectedAlert.id,
+    )
+    const targetIndex = currentIndex >= 0 ? currentIndex + direction : -1
+
+    if (targetIndex >= 0 && targetIndex < data.items.length) {
+      setSelectedAlert(data.items[targetIndex])
+      return
+    }
+
+    const targetPage = page + direction
+    if (targetPage < DEFAULT_PAGE || targetPage > totalPages) {
+      return
+    }
+
+    const controller = new AbortController()
+    navigationAbortRef.current = controller
+    setNavigation(direction > 0 ? 'next' : 'previous')
+
+    try {
+      const response = await fetchAlerts({
+        page: targetPage,
+        pageSize,
+        startTs: range.start,
+        endTs: range.end,
+        filters,
+        signal: controller.signal,
+      })
+
+      if (controller.signal.aborted) {
+        return
+      }
+
+      const target =
+        direction > 0
+          ? response.items[0]
+          : response.items[response.items.length - 1]
+
+      if (!target) {
+        message.error(t('detail.navigationError'))
+        return
+      }
+
+      skipPageFetchRef.current = targetPage
+      setData(response)
+      setLoadError(false)
+      setPage(targetPage)
+      setSelectedAlert(target)
+    } catch (error) {
+      if (!isAbortError(error)) {
+        console.error('Failed to switch alert', error)
+        message.error(t('detail.navigationError'))
+      }
+    } finally {
+      if (navigationAbortRef.current === controller) {
+        navigationAbortRef.current = null
+        setNavigation(null)
+      }
+    }
+  }
+
+  const handleCloseAlert = () => {
+    navigationAbortRef.current?.abort()
+    navigationAbortRef.current = null
+    setNavigation(null)
+    setSelectedAlert(null)
   }
 
   const handleRetry = () => {
@@ -405,12 +559,25 @@ export function AlertLogPage() {
             onChange={handleTableChange}
             pagination={pagination}
             rowKey="id"
-            scroll={{ x: 1220, y: bodyHeight }}
+            scroll={{ x: 1490, y: bodyHeight }}
             size="medium"
             tableLayout="fixed"
           />
         </div>
       </div>
+      <AlertDetailDrawer
+        alert={selectedAlert}
+        canPrevious={canPreviousAlert}
+        canNext={canNextAlert}
+        navigation={navigation}
+        onPrevious={() => {
+          void goToAdjacentAlert(-1)
+        }}
+        onNext={() => {
+          void goToAdjacentAlert(1)
+        }}
+        onClose={handleCloseAlert}
+      />
     </div>
   )
 }
