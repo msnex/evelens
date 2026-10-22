@@ -15,10 +15,12 @@ include [Eve Header](./eve_header.md)
 | http.http_method          | string | yes      | http_method    | GET/POST/...    |
 | http.url                  | string | yes      | http_url       |                 |
 | http.protocol             | string | yes      | http_protocol  |                 |
+| http.status               | u16    | yes      | http_status    | 200             |
 | http.http_request_header  | string | yes      | http_req_hdr   |                 |
 | http.http_response_header | string | yes      | http_resp_hdr  |                 |
 | http.http_request_body    | string | yes      | http_req_body  |                 |
 | http.http_response_body   | string | yes      | http_resp_body |                 |
+| http.http_response_line   | string | yes      | http_resp_line |                 |
 | flow.pkts_toserver        | u64    | yes      | ts_pkts        |                 |
 | flow.pkts_toclient        | u64    | yes      | tc_pkts        |                 |
 | flow.bytes_toserver       | u64    | yes      | ts_bytes       |                 |

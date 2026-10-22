@@ -4,10 +4,14 @@ import type {
   AlertFilterField,
   AlertFilterOperator,
 } from '../../types/alert.ts'
+import {
+  getSeverityOption,
+  isSeverityValue,
+} from '../../utils/severity.ts'
 
 export const MAX_ALERT_FILTERS = 16
 
-type FilterInputKind = 'text' | 'number' | 'ip' | 'select'
+type FilterInputKind = 'text' | 'number' | 'ip' | 'select' | 'severity'
 export type FilterOptionSource = 'proto' | 'app_proto' | 'category'
 
 type AlertFilterFieldConfig = {
@@ -30,6 +34,12 @@ export const ALERT_FILTER_FIELDS: AlertFilterFieldConfig[] = [
     labelKey: 'filter.field.signature',
     input: 'text',
     operators: ['eq', 'ne', 'match', 'not_match'],
+  },
+  {
+    value: 'severity',
+    labelKey: 'filter.field.severity',
+    input: 'severity',
+    operators: ['eq', 'ne', 'in', 'not_in'],
   },
   {
     value: 'category',
@@ -142,7 +152,12 @@ export function formatAlertFilter(
   const field = getFilterField(filter.field)
   const operator = getFilterOperator(filter.operator)
   const operatorLabel = operator.summary ?? t(operator.labelKey)
-  return `${t(field.labelKey)} ${operatorLabel} ${filter.values.join(', ')}`
+  const values =
+    filter.field === 'severity'
+      ? filter.values.map((value) => t(getSeverityOption(value).labelKey))
+      : filter.values
+
+  return `${t(field.labelKey)} ${operatorLabel} ${values.join(', ')}`
 }
 
 export function buildAlertFilter(
@@ -185,6 +200,13 @@ export function buildAlertFilter(
     !normalizedValues.every((value) => isValidIp(value))
   ) {
     return { status: 'invalid', messageKey: 'filter.invalidIp' }
+  }
+
+  if (
+    fieldConfig.input === 'severity' &&
+    !normalizedValues.every((value) => isSeverityValue(value))
+  ) {
+    return { status: 'invalid', messageKey: 'filter.invalidValues' }
   }
 
   return {

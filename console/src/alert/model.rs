@@ -1,6 +1,6 @@
 use crate::alert::service::now_ms;
 use eveschema::clickhouse::eve_alert::is_tx_id_missing;
-use eveschema::util::{i64_as_string, is_zero_u8, u64_as_string};
+use eveschema::util::{i64_as_string, is_zero_u8, is_zero_u16, u64_as_string};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::net::IpAddr;
 
@@ -33,6 +33,7 @@ pub struct AlertFilter {
 #[serde(rename_all = "snake_case")]
 pub enum AlertFilterField {
     Signature,
+    Severity,
     Category,
     SrcIp,
     DstIp,
@@ -46,6 +47,7 @@ impl AlertFilterField {
     pub fn column(self) -> &'static str {
         match self {
             Self::Signature => "signature",
+            Self::Severity => "severity",
             Self::Category => "category",
             Self::SrcIp => "src_ip",
             Self::DstIp => "dst_ip",
@@ -62,6 +64,10 @@ impl AlertFilterField {
 
     pub fn is_ip(self) -> bool {
         matches!(self, Self::SrcIp | Self::DstIp)
+    }
+
+    pub fn is_severity(self) -> bool {
+        matches!(self, Self::Severity)
     }
 }
 
@@ -173,6 +179,10 @@ impl AlertQuery {
                         .parse::<u16>()
                         .map(|port| port.to_string())
                         .map_err(|_| AlertQueryError::FilterValue)?
+                } else if filter.field.is_severity() {
+                    let severity = value.to_ascii_lowercase();
+                    Severity::from_str(&severity).ok_or(AlertQueryError::FilterValue)?;
+                    severity
                 } else {
                     value.to_string()
                 };
@@ -258,6 +268,8 @@ pub struct AlertRow {
     pub http_url: String,
     #[serde(skip_serializing_if = "String::is_empty")]
     pub http_protocol: String,
+    #[serde(skip_serializing_if = "is_zero_u16")]
+    pub http_status: u16,
     #[serde(skip_serializing_if = "String::is_empty")]
     pub http_req_hdr: String,
     #[serde(skip_serializing_if = "String::is_empty")]
@@ -266,6 +278,8 @@ pub struct AlertRow {
     pub http_req_body: String,
     #[serde(skip_serializing_if = "String::is_empty")]
     pub http_resp_body: String,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub http_resp_line: String,
     #[serde(with = "u64_as_string")]
     pub ts_pkts: u64,
     #[serde(with = "u64_as_string")]
@@ -323,7 +337,7 @@ impl Severity {
         }
     }
 
-    fn as_i32(self) -> i32 {
+    pub(crate) fn as_i32(self) -> i32 {
         match self {
             Self::High => 1,
             Self::Medium => 2,
@@ -343,7 +357,7 @@ impl Severity {
         }
     }
 
-    fn from_str(value: &str) -> Option<Self> {
+    pub(crate) fn from_str(value: &str) -> Option<Self> {
         match value {
             "high" => Some(Self::High),
             "medium" => Some(Self::Medium),
@@ -387,6 +401,16 @@ mod tests {
     use super::*;
     use serde_json::json;
 
+    fn query_with_filters(filters: Vec<AlertFilter>) -> AlertQuery {
+        AlertQuery {
+            page: Some(1),
+            page_size: Some(20),
+            start_ts: Some(0),
+            end_ts: Some(1),
+            filters,
+        }
+    }
+
     #[test]
     fn alert_page_serializes_total_as_string() {
         let page = AlertPage {
@@ -401,5 +425,43 @@ mod tests {
         assert_eq!(value["total"], json!(u64::MAX.to_string()));
         assert!(value["total"].is_string());
         assert!(!value["total"].is_number());
+    }
+
+    #[test]
+    fn normalize_filters_normalizes_severity_values() {
+        let mut query = query_with_filters(vec![AlertFilter {
+            field: AlertFilterField::Severity,
+            operator: AlertFilterOperator::In,
+            values: vec![
+                "HIGH".to_string(),
+                " medium ".to_string(),
+                "high".to_string(),
+            ],
+        }]);
+
+        query.normalize_filters().unwrap();
+
+        assert_eq!(query.filters[0].values, vec!["high", "medium"]);
+    }
+
+    #[test]
+    fn normalize_filters_rejects_invalid_severity_value() {
+        let mut query = query_with_filters(vec![AlertFilter {
+            field: AlertFilterField::Severity,
+            operator: AlertFilterOperator::Eq,
+            values: vec!["critical".to_string()],
+        }]);
+
+        assert_eq!(query.normalize_filters(), Err(AlertQueryError::FilterValue));
+    }
+
+    #[test]
+    fn severity_filter_operators_are_limited() {
+        assert!(AlertFilterOperator::Eq.is_allowed_for(AlertFilterField::Severity));
+        assert!(AlertFilterOperator::Ne.is_allowed_for(AlertFilterField::Severity));
+        assert!(AlertFilterOperator::In.is_allowed_for(AlertFilterField::Severity));
+        assert!(AlertFilterOperator::NotIn.is_allowed_for(AlertFilterField::Severity));
+        assert!(!AlertFilterOperator::Gt.is_allowed_for(AlertFilterField::Severity));
+        assert!(!AlertFilterOperator::Match.is_allowed_for(AlertFilterField::Severity));
     }
 }

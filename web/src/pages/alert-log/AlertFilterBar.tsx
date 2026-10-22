@@ -7,6 +7,7 @@ import type {
   AlertFilterField,
   AlertFilterOperator,
 } from '../../types/alert.ts'
+import { SEVERITY_OPTIONS } from '../../utils/severity.ts'
 import {
   ALERT_FILTER_FIELDS,
   MAX_ALERT_FILTERS,
@@ -119,13 +120,21 @@ export function AlertFilterBar({
             ? t('filter.ipPlaceholder')
             : t('filter.valuePlaceholder')
 
-    if (fieldConfig.input === 'select') {
-      const options = getOptionValues(
-        fieldConfig.optionSource,
-        protoOptions,
-        appProtoOptions,
-        categoryOptions,
-      ).map((value) => ({ value, label: value }))
+    if (fieldConfig.input === 'select' || fieldConfig.input === 'severity') {
+      const options =
+        fieldConfig.input === 'severity'
+          ? SEVERITY_OPTIONS.map((option) => ({
+              value: option.value,
+              label: t(option.labelKey),
+            }))
+          : getOptionValues(
+              fieldConfig.optionSource,
+              protoOptions,
+              appProtoOptions,
+              categoryOptions,
+            ).map((value) => ({ value, label: value }))
+      const selectLoading =
+        fieldConfig.input === 'select' ? optionsLoading : false
 
       if (multi) {
         return (
@@ -135,7 +144,7 @@ export function AlertFilterBar({
             showSearch
             maxTagCount="responsive"
             className="alert-filter-control"
-            loading={optionsLoading}
+            loading={selectLoading}
             options={options}
             placeholder={placeholder}
             value={values}
@@ -149,7 +158,7 @@ export function AlertFilterBar({
           allowClear
           showSearch
           className="alert-filter-control"
-          loading={optionsLoading}
+          loading={selectLoading}
           options={options}
           placeholder={placeholder}
           value={values[0]}
