@@ -1,5 +1,7 @@
 import type {
   AlertCategories,
+  AlertExportField,
+  AlertExportLocale,
   AlertFilter,
   AlertPage,
   AlertProtos,
@@ -31,6 +33,30 @@ type FetchOptions = {
   endTs: number
   signal?: AbortSignal
 }
+
+type ExportAlertsOptions = {
+  startTs: number
+  endTs: number
+  filters: AlertFilter[]
+  fields: AlertExportField[]
+  locale: AlertExportLocale
+  signal?: AbortSignal
+}
+
+export type AlertExportResult =
+  | {
+      kind: 'file'
+      blob: Blob
+      total: string
+      exported: string
+      truncated: boolean
+      maxRows: string
+    }
+  | {
+      kind: 'empty'
+      total: string
+      maxRows: string
+    }
 
 async function postJson<T>(
   url: string,
@@ -118,4 +144,67 @@ export async function fetchAlertCategories({
     { start_ts: startTs, end_ts: endTs },
     signal,
   )
+}
+
+export async function exportAlerts({
+  startTs,
+  endTs,
+  filters,
+  fields,
+  locale,
+  signal,
+}: ExportAlertsOptions): Promise<AlertExportResult> {
+  const payload: {
+    start_ts: number
+    end_ts: number
+    filters?: AlertFilter[]
+    fields: AlertExportField[]
+    locale: AlertExportLocale
+  } = {
+    start_ts: startTs,
+    end_ts: endTs,
+    fields,
+    locale,
+  }
+
+  if (filters.length > 0) {
+    payload.filters = filters
+  }
+
+  const response = await fetch('/api/v1/alerts/export', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+    signal,
+  })
+
+  if (!response.ok) {
+    const body: unknown = await response.json().catch(() => null)
+    const errorBody = body as { code?: string; message?: string } | null
+
+    throw new ApiError(
+      errorBody?.message ?? `HTTP ${response.status}`,
+      response.status,
+      errorBody?.code,
+    )
+  }
+
+  if (response.status === 204) {
+    return {
+      kind: 'empty',
+      total: response.headers.get('X-Export-Total') ?? '0',
+      maxRows: response.headers.get('X-Export-Max-Rows') ?? '0',
+    }
+  }
+
+  return {
+    kind: 'file',
+    blob: await response.blob(),
+    total: response.headers.get('X-Export-Total') ?? '0',
+    exported: response.headers.get('X-Export-Exported') ?? '0',
+    truncated: response.headers.get('X-Export-Truncated') === 'true',
+    maxRows: response.headers.get('X-Export-Max-Rows') ?? '0',
+  }
 }

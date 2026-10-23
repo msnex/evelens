@@ -40,6 +40,7 @@ pnpm --prefix web test:e2e:headed
 | ---- | -------- |
 | `unit/api/alerts.test.ts` | Request payloads, error handling and `ApiError` behavior. |
 | `unit/locales/index.test.ts` | Chinese/English message-key parity and non-empty translations. |
+| `unit/pages/alert-log/export.test.ts` | Export field catalog, ordering and CSV filename generation. |
 | `unit/pages/alert-log/filter.test.ts` | Filter validation, normalization, identity and formatting. |
 | `unit/pages/alert-log/timeRange.test.ts` | Preset durations, refresh behavior and range formatting. |
 | `unit/utils/base64.test.ts` | Standard/Base64URL decoding and invalid input fallback. |
@@ -56,7 +57,7 @@ without jsdom or React Testing Library.
 | `e2e/fixtures/alerts.ts` | Deterministic `AlertRow` test data, including an HTTP alert with Base64 payloads. |
 | `e2e/fixtures/api.ts` | Mocked alert/proto/category APIs with request capture, failure injection, and delayed pages. |
 | `e2e/support/ui.ts` | Shared helpers for tables, filters, time range, pagination, and the detail drawer. |
-| `e2e/*.spec.ts` | Feature suites for the alert table, filters, detail drawer, i18n, and responsive layout. |
+| `e2e/*.spec.ts` | Feature suites for the alert table, filters, export, detail drawer, i18n, and responsive layout. |
 
 E2E tests run against the Vite dev server and mock all backend requests with
 `page.route`, so no ClickHouse, console server, or Redis instance is required.

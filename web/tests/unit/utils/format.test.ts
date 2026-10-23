@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   formatAppProto,
+  formatCount,
   formatPort,
   formatText,
   formatTimestamp,
@@ -17,6 +18,20 @@ describe('formatTimestamp', () => {
     expect(formatTimestamp('')).toBe('--')
     expect(formatTimestamp('abc')).toBe('--')
     expect(formatTimestamp('NaN')).toBe('--')
+  })
+})
+
+describe('formatCount', () => {
+  it('formats numeric strings with locale separators', () => {
+    expect(formatCount('1000000', 'en-US')).toBe('1,000,000')
+    expect(formatCount('21', 'zh-CN')).toBe('21')
+  })
+
+  it('supports large counts and falls back for invalid values', () => {
+    expect(formatCount('9007199254740993', 'en-US')).toBe(
+      '9,007,199,254,740,993',
+    )
+    expect(formatCount('not-a-number', 'en-US')).toBe('not-a-number')
   })
 })
 

@@ -1,9 +1,10 @@
+use crate::alert::export::{AlertExportField, ExportLocale, build_export_select};
 use crate::alert::model::{
     AlertCategories, AlertFilter, AlertFilterOperator, AlertPage, AlertProtos, AlertRow, Severity,
 };
 use crate::database::clickhouse::get_clickhouse_client;
 use anyhow::Result;
-use clickhouse::query::Query;
+use clickhouse::query::{BytesCursor, Query};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const ALERT_TIME_FILTER: &str = "eve_alert_log.timestamp >= fromUnixTimestamp64Milli(?) AND eve_alert_log.timestamp <= fromUnixTimestamp64Milli(?)";
@@ -60,6 +61,15 @@ fn option_where_clause(range: Option<(i64, i64)>) -> String {
         format!(" WHERE {ALERT_TIME_FILTER}")
     } else {
         String::new()
+    }
+}
+
+fn build_filter_suffix(filters: &[AlertFilter]) -> String {
+    let filter_clause = build_filter_clause(filters);
+    if filter_clause.is_empty() {
+        String::new()
+    } else {
+        format!(" AND ({filter_clause})")
     }
 }
 
@@ -125,12 +135,7 @@ pub async fn query_alerts(
     filters: &[AlertFilter],
 ) -> Result<AlertPage> {
     let client = get_clickhouse_client();
-    let filter_clause = build_filter_clause(filters);
-    let filter_sql = if filter_clause.is_empty() {
-        String::new()
-    } else {
-        format!(" AND ({filter_clause})")
-    };
+    let filter_sql = build_filter_suffix(filters);
 
     let count_sql =
         format!("SELECT count() FROM eve_alert_log WHERE {ALERT_TIME_FILTER}{filter_sql}");
@@ -170,6 +175,59 @@ pub async fn query_alerts(
         page_size,
         items,
     })
+}
+
+pub async fn count_export_alerts(
+    start_ts: i64,
+    end_ts: i64,
+    filters: &[AlertFilter],
+) -> Result<u64> {
+    let client = get_clickhouse_client();
+    let filter_sql = build_filter_suffix(filters);
+    let count_sql =
+        format!("SELECT count() FROM eve_alert_log WHERE {ALERT_TIME_FILTER}{filter_sql}");
+    let count_query = bind_filter_values(
+        client.query(&count_sql).bind(start_ts).bind(end_ts),
+        filters,
+    );
+
+    Ok(count_query.fetch_one::<u64>().await?)
+}
+
+pub fn build_export_sql(
+    fields: &[AlertExportField],
+    locale: ExportLocale,
+    filter_sql: &str,
+    max_rows: u64,
+) -> String {
+    let select = build_export_select(fields, locale);
+    let limit_clause = if max_rows > 0 { " LIMIT ?" } else { "" };
+
+    format!(
+        "SELECT {select} FROM eve_alert_log WHERE {ALERT_TIME_FILTER}{filter_sql} \
+         ORDER BY eve_alert_log.timestamp DESC{limit_clause}"
+    )
+}
+
+pub fn open_export_cursor(
+    start_ts: i64,
+    end_ts: i64,
+    filters: &[AlertFilter],
+    fields: &[AlertExportField],
+    locale: ExportLocale,
+    max_rows: u64,
+) -> Result<BytesCursor> {
+    let client = get_clickhouse_client();
+    let filter_sql = build_filter_suffix(filters);
+    let sql = build_export_sql(fields, locale, &filter_sql, max_rows);
+    let query = bind_filter_values(client.query(&sql).bind(start_ts).bind(end_ts), filters);
+    let query = if max_rows > 0 {
+        query.bind(max_rows)
+    } else {
+        query
+    };
+
+    Ok(query.fetch_bytes("CSV")?)
 }
 
 #[cfg(test)]
@@ -233,5 +291,34 @@ mod tests {
             build_filter_clause(&filters),
             "eve_alert_log.severity IN (?, ?)"
         );
+    }
+
+    #[test]
+    fn build_export_sql_preserves_field_order_and_adds_limit() {
+        let fields = [
+            AlertExportField::Signature,
+            AlertExportField::Severity,
+            AlertExportField::Id,
+        ];
+        let sql = build_export_sql(
+            &fields,
+            ExportLocale::ZhCn,
+            " AND (eve_alert_log.proto = ?)",
+            100,
+        );
+
+        assert!(sql.starts_with(
+            "SELECT signature, multiIf(severity = 1, '高', severity = 2, '中', severity = 3, '低', severity = 4, '信息', '未知'), toString(id) FROM eve_alert_log WHERE"
+        ));
+        assert!(sql.contains(" AND (eve_alert_log.proto = ?)"));
+        assert!(sql.ends_with("ORDER BY eve_alert_log.timestamp DESC LIMIT ?"));
+    }
+
+    #[test]
+    fn build_export_sql_omits_limit_when_unlimited() {
+        let sql = build_export_sql(&[AlertExportField::Signature], ExportLocale::EnUs, "", 0);
+
+        assert!(sql.ends_with("ORDER BY eve_alert_log.timestamp DESC"));
+        assert!(!sql.contains("LIMIT"));
     }
 }

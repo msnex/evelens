@@ -12,6 +12,7 @@ config = { workspace = true }
 ctrlc = { workspace = true }
 elog = { path = "../crates/elog" }
 eveschema = { path = "../crates/eveschema" }
+futures-util = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true, features = ["macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
