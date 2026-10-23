@@ -190,8 +190,8 @@ chrome-devtools execute_3p_developer_tool 1 "tool_name" --params '{"arg":"val"}'
 ## Service Management
 
 ```bash
-chrome-devtools start --isolated --performanceCrux false --usageStatistics false   # Start or restart chrome-devtools-mcp
-chrome-devtools start --headless=false --isolated --performanceCrux false --usageStatistics false # Start with visible browser window
+chrome-devtools start --isolated=true --performanceCrux=false --usageStatistics=false   # Start or restart chrome-devtools-mcp
+chrome-devtools start --headless=false --isolated=true --performanceCrux=false --usageStatistics=false # Start with visible browser window
 chrome-devtools status  # Checks if chrome-devtools-mcp is running
 chrome-devtools stop    # Stop chrome-devtools-mcp if any
 ```
