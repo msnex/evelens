@@ -1,5 +1,9 @@
 import type { Page, Route } from '@playwright/test'
-import type { AlertFilter, AlertRow } from '../../../src/types/alert.ts'
+import type {
+  AlertExportField,
+  AlertFilter,
+  AlertRow,
+} from '../../../src/types/alert.ts'
 
 export type AlertRequest = {
   page: number
@@ -9,6 +13,14 @@ export type AlertRequest = {
   filters?: AlertFilter[]
 }
 
+export type AlertExportRequest = {
+  start_ts: number
+  end_ts: number
+  filters?: AlertFilter[]
+  fields: AlertExportField[]
+  locale: 'zh-CN' | 'en-US'
+}
+
 type MockAlertApiOptions = {
   alerts?: AlertRow[]
   total?: string
@@ -16,6 +28,13 @@ type MockAlertApiOptions = {
   appProtos?: string[]
   categories?: string[]
   failAlertsStatus?: number
+  exportCsv?: string
+  exportTruncated?: boolean
+  exportTotal?: string
+  exportExported?: string
+  exportMaxRows?: string
+  exportEmpty?: boolean
+  failExportStatus?: number
 }
 
 type HeldPage = {
@@ -28,11 +47,14 @@ export type MockAlertApi = {
     alerts: AlertRequest[]
     protos: unknown[]
     categories: unknown[]
+    export: AlertExportRequest[]
   }
   setAlerts: (alerts: AlertRow[], total?: string) => void
   setFailure: (status: number | null) => void
+  setExportFailure: (status: number | null) => void
   holdPage: (page: number) => () => void
   lastAlertRequest: () => AlertRequest | undefined
+  lastExportRequest: () => AlertExportRequest | undefined
 }
 
 export async function createMockAlertApi(
@@ -42,12 +64,19 @@ export async function createMockAlertApi(
   let alerts = options.alerts ?? []
   let total = options.total ?? String(alerts.length)
   let failureStatus = options.failAlertsStatus ?? null
+  let exportFailureStatus = options.failExportStatus ?? null
   const heldPages = new Map<number, HeldPage>()
   const requests: MockAlertApi['requests'] = {
     alerts: [],
     protos: [],
     categories: [],
+    export: [],
   }
+  const exportTotal = options.exportTotal ?? String(alerts.length)
+  const exportExported = options.exportExported ?? exportTotal
+  const exportMaxRows = options.exportMaxRows ?? '1000000'
+  const exportCsv =
+    options.exportCsv ?? '\ufeff告警名称,严重级别\r\nAlert 1,高\r\n'
 
   const fulfillJson = (
     route: Route,
@@ -75,7 +104,47 @@ export async function createMockAlertApi(
     })
   })
 
-  await page.route('**/api/v1/alerts', async (route) => {
+  await page.route('**/api/v1/alerts/export', async (route) => {
+    const body = route.request().postDataJSON() as AlertExportRequest
+    requests.export.push(body)
+
+    if (exportFailureStatus !== null) {
+      await fulfillJson(
+        route,
+        { code: '5001', message: 'mock export failure' },
+        exportFailureStatus,
+      )
+      return
+    }
+
+    if (options.exportEmpty) {
+      await route.fulfill({
+        status: 204,
+        headers: {
+          'X-Export-Total': '0',
+          'X-Export-Exported': '0',
+          'X-Export-Truncated': 'false',
+          'X-Export-Max-Rows': exportMaxRows,
+        },
+      })
+      return
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/csv; charset=utf-8',
+      headers: {
+        'Content-Disposition': 'attachment; filename="alerts.csv"',
+        'X-Export-Total': exportTotal,
+        'X-Export-Exported': exportExported,
+        'X-Export-Truncated': String(options.exportTruncated ?? false),
+        'X-Export-Max-Rows': exportMaxRows,
+      },
+      body: exportCsv,
+    })
+  })
+
+  await page.route(/\/api\/v1\/alerts$/, async (route) => {
     const body = route.request().postDataJSON() as AlertRequest
     requests.alerts.push(body)
 
@@ -114,6 +183,9 @@ export async function createMockAlertApi(
     setFailure(status) {
       failureStatus = status
     },
+    setExportFailure(status) {
+      exportFailureStatus = status
+    },
     holdPage(pageNumber) {
       let release = () => {}
       const promise = new Promise<void>((resolve) => {
@@ -128,6 +200,9 @@ export async function createMockAlertApi(
     },
     lastAlertRequest() {
       return requests.alerts.at(-1)
+    },
+    lastExportRequest() {
+      return requests.export.at(-1)
     },
   }
 }

@@ -127,6 +127,74 @@ pub enum AlertQueryError {
     FilterOperator,
     FilterValue,
     FilterCount,
+    ExportFields,
+}
+
+pub(crate) fn resolve_time_range(
+    start_ts: Option<i64>,
+    end_ts: Option<i64>,
+) -> Result<(i64, i64), AlertQueryError> {
+    let end_ts = end_ts.unwrap_or(now_ms());
+    let start_ts = start_ts.unwrap_or_else(|| end_ts.saturating_sub(DEFAULT_RANGE_MS));
+    if start_ts > end_ts {
+        return Err(AlertQueryError::TimeRange);
+    }
+
+    Ok((start_ts, end_ts))
+}
+
+pub(crate) fn normalize_filters(filters: &mut [AlertFilter]) -> Result<(), AlertQueryError> {
+    if filters.len() > MAX_FILTERS {
+        return Err(AlertQueryError::FilterCount);
+    }
+
+    for filter in filters {
+        if !filter.operator.is_allowed_for(filter.field) {
+            return Err(AlertQueryError::FilterOperator);
+        }
+
+        let mut values = Vec::with_capacity(filter.values.len());
+        for raw in &filter.values {
+            let value = raw.trim();
+            if value.is_empty() {
+                return Err(AlertQueryError::FilterValue);
+            }
+
+            let value = if filter.field.is_ip() {
+                value
+                    .parse::<IpAddr>()
+                    .map(|ip| ip.to_string())
+                    .map_err(|_| AlertQueryError::FilterValue)?
+            } else if filter.field.is_port() {
+                value
+                    .parse::<u16>()
+                    .map(|port| port.to_string())
+                    .map_err(|_| AlertQueryError::FilterValue)?
+            } else if filter.field.is_severity() {
+                let severity = value.to_ascii_lowercase();
+                Severity::from_str(&severity).ok_or(AlertQueryError::FilterValue)?;
+                severity
+            } else {
+                value.to_string()
+            };
+
+            if !values.contains(&value) {
+                values.push(value);
+            }
+        }
+
+        if filter.operator.is_multi() {
+            if values.is_empty() {
+                return Err(AlertQueryError::FilterValue);
+            }
+        } else if values.len() != 1 {
+            return Err(AlertQueryError::FilterValue);
+        }
+
+        filter.values = values;
+    }
+
+    Ok(())
 }
 
 impl AlertQuery {
@@ -141,69 +209,13 @@ impl AlertQuery {
             return Err(AlertQueryError::PageSize);
         }
 
-        let end_ts = self.end_ts.unwrap_or(now_ms());
-        let start_ts = self
-            .start_ts
-            .unwrap_or_else(|| end_ts.saturating_sub(DEFAULT_RANGE_MS));
-        if start_ts > end_ts {
-            return Err(AlertQueryError::TimeRange);
-        }
+        let (start_ts, end_ts) = resolve_time_range(self.start_ts, self.end_ts)?;
 
         Ok((page, page_size, start_ts, end_ts))
     }
 
     pub fn normalize_filters(&mut self) -> Result<(), AlertQueryError> {
-        if self.filters.len() > MAX_FILTERS {
-            return Err(AlertQueryError::FilterCount);
-        }
-
-        for filter in &mut self.filters {
-            if !filter.operator.is_allowed_for(filter.field) {
-                return Err(AlertQueryError::FilterOperator);
-            }
-
-            let mut values = Vec::with_capacity(filter.values.len());
-            for raw in &filter.values {
-                let value = raw.trim();
-                if value.is_empty() {
-                    return Err(AlertQueryError::FilterValue);
-                }
-
-                let value = if filter.field.is_ip() {
-                    value
-                        .parse::<IpAddr>()
-                        .map(|ip| ip.to_string())
-                        .map_err(|_| AlertQueryError::FilterValue)?
-                } else if filter.field.is_port() {
-                    value
-                        .parse::<u16>()
-                        .map(|port| port.to_string())
-                        .map_err(|_| AlertQueryError::FilterValue)?
-                } else if filter.field.is_severity() {
-                    let severity = value.to_ascii_lowercase();
-                    Severity::from_str(&severity).ok_or(AlertQueryError::FilterValue)?;
-                    severity
-                } else {
-                    value.to_string()
-                };
-
-                if !values.contains(&value) {
-                    values.push(value);
-                }
-            }
-
-            if filter.operator.is_multi() {
-                if values.is_empty() {
-                    return Err(AlertQueryError::FilterValue);
-                }
-            } else if values.len() != 1 {
-                return Err(AlertQueryError::FilterValue);
-            }
-
-            filter.values = values;
-        }
-
-        Ok(())
+        normalize_filters(&mut self.filters)
     }
 }
 
@@ -290,7 +302,7 @@ pub struct AlertRow {
     pub tc_bytes: u64,
 }
 
-fn deserialize_opt_i64<'de, D>(deserializer: D) -> Result<Option<i64>, D::Error>
+pub(crate) fn deserialize_opt_i64<'de, D>(deserializer: D) -> Result<Option<i64>, D::Error>
 where
     D: Deserializer<'de>,
 {

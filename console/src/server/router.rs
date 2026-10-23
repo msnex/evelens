@@ -10,6 +10,7 @@ pub fn router() -> Router {
 fn api_router() -> Router {
     Router::new()
         .route("/v1/alerts", post(alert::get_alerts))
+        .route("/v1/alerts/export", post(alert::export_alerts))
         .route("/v1/alerts/protos", post(alert::get_alert_protos))
         .route("/v1/alerts/categories", post(alert::get_alert_categories))
         .fallback(error::not_found)

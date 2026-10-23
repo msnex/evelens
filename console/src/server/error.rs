@@ -12,6 +12,7 @@ const CODE_INVALID_JSON: &str = "4004";
 const CODE_INVALID_FILTER_OPERATOR: &str = "4005";
 const CODE_INVALID_FILTER_VALUE: &str = "4006";
 const CODE_INVALID_FILTER_COUNT: &str = "4007";
+const CODE_INVALID_EXPORT_FIELDS: &str = "4009";
 const CODE_PAYLOAD_TOO_LARGE: &str = "4131";
 const CODE_UNSUPPORTED_MEDIA_TYPE: &str = "4151";
 const CODE_INVALID_REQUEST_BODY: &str = "4221";
@@ -96,6 +97,15 @@ impl ApiError {
         )
     }
 
+    fn invalid_export_fields() -> Self {
+        Self::new(
+            StatusCode::BAD_REQUEST,
+            CODE_INVALID_EXPORT_FIELDS,
+            "at least one export field is required",
+            Some("fields"),
+        )
+    }
+
     fn invalid_json() -> Self {
         Self::new(
             StatusCode::BAD_REQUEST,
@@ -173,6 +183,7 @@ impl From<AlertQueryError> for ApiError {
             AlertQueryError::FilterOperator => Self::invalid_filter_operator(),
             AlertQueryError::FilterValue => Self::invalid_filter_value(),
             AlertQueryError::FilterCount => Self::invalid_filter_count(),
+            AlertQueryError::ExportFields => Self::invalid_export_fields(),
         }
     }
 }
@@ -269,6 +280,12 @@ mod tests {
                 "4007",
                 Some("filters"),
             ),
+            (
+                AlertQueryError::ExportFields,
+                StatusCode::BAD_REQUEST,
+                "4009",
+                Some("fields"),
+            ),
         ];
 
         for (query_error, status, code, field) in cases {
@@ -290,6 +307,7 @@ mod tests {
             CODE_INVALID_FILTER_OPERATOR,
             CODE_INVALID_FILTER_VALUE,
             CODE_INVALID_FILTER_COUNT,
+            CODE_INVALID_EXPORT_FIELDS,
             CODE_PAYLOAD_TOO_LARGE,
             CODE_UNSUPPORTED_MEDIA_TYPE,
             CODE_INVALID_REQUEST_BODY,

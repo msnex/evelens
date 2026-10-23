@@ -10,6 +10,9 @@ password = "change-me"
 [runtime]
 worker_threads = 4
 
+[export]
+max_rows = 1000000
+
 [log]
 # valid values: stdout, file
 writer = "stdout"

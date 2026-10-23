@@ -15,12 +15,14 @@ import type {
 } from '../../types/alert.ts'
 import {
   formatAppProto,
+  formatCount,
   formatPort,
   formatText,
   formatTimestamp,
 } from '../../utils/format.ts'
 import { getSeverityOption } from '../../utils/severity.ts'
 import { AlertDetailDrawer } from './AlertDetailDrawer.tsx'
+import { AlertExportDialog } from './AlertExportDialog.tsx'
 import { AlertFilterBar } from './AlertFilterBar.tsx'
 import { alertFilterKey, isSameAlertFilter } from './filter.ts'
 import { TimeRangeFilter } from './TimeRangeFilter.tsx'
@@ -62,14 +64,6 @@ function parseTotal(value: string): bigint {
   }
 }
 
-function formatTotal(value: string, locale: string): string {
-  try {
-    return BigInt(value).toLocaleString(locale)
-  } catch {
-    return value
-  }
-}
-
 export function AlertLogPage() {
   const { locale, t } = useI18n()
   const { message } = AntdApp.useApp()
@@ -83,6 +77,10 @@ export function AlertLogPage() {
   const [reloadToken, setReloadToken] = useState(0)
   const [filters, setFilters] = useState<AlertFilter[]>([])
   const [selectedAlert, setSelectedAlert] = useState<AlertRow | null>(null)
+  const [exportSnapshot, setExportSnapshot] = useState<{
+    range: TimeRangeValue
+    filters: AlertFilter[]
+  } | null>(null)
   const [navigation, setNavigation] = useState<
     'previous' | 'next' | null
   >(null)
@@ -353,7 +351,7 @@ export function AlertLogPage() {
     showTotal: () =>
       t('pagination.total').replace(
         '{total}',
-        formatTotal(data.total, locale),
+        formatCount(data.total, locale),
       ),
     responsive: false,
   }
@@ -519,6 +517,16 @@ export function AlertLogPage() {
     )
   }
 
+  const handleOpenExport = () => {
+    setExportSnapshot({
+      range: { ...range },
+      filters: filters.map((filter) => ({
+        ...filter,
+        values: [...filter.values],
+      })),
+    })
+  }
+
   const emptyText = loadError ? (
     <Empty
       image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -545,6 +553,7 @@ export function AlertLogPage() {
         categoryOptions={categoryOptions}
         optionsLoading={optionsLoading}
         onSearch={handleSearch}
+        onExport={handleOpenExport}
         onRemove={handleRemoveFilter}
       />
       <div className="alert-table-shell">
@@ -578,6 +587,13 @@ export function AlertLogPage() {
         }}
         onClose={handleCloseAlert}
       />
+      {exportSnapshot && (
+        <AlertExportDialog
+          filters={exportSnapshot.filters}
+          range={exportSnapshot.range}
+          onClose={() => setExportSnapshot(null)}
+        />
+      )}
     </div>
   )
 }

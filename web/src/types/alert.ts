@@ -71,6 +71,44 @@ export type AlertFilter = {
   values: string[]
 }
 
+export type AlertExportLocale = 'zh-CN' | 'en-US'
+
+export type AlertExportField =
+  | 'signature'
+  | 'category'
+  | 'severity'
+  | 'action'
+  | 'timestamp'
+  | 'signature_id'
+  | 'rule'
+  | 'xff'
+  | 'src_mac'
+  | 'src_ip'
+  | 'src_port'
+  | 'dst_mac'
+  | 'dst_ip'
+  | 'dst_port'
+  | 'vlan'
+  | 'proto'
+  | 'app_proto'
+  | 'ts_pkts'
+  | 'ts_bytes'
+  | 'tc_pkts'
+  | 'tc_bytes'
+  | 'pkt_src'
+  | 'http_method'
+  | 'http_url'
+  | 'http_protocol'
+  | 'http_status'
+  | 'http_req_hdr'
+  | 'http_req_body'
+  | 'http_resp_line'
+  | 'http_resp_hdr'
+  | 'http_resp_body'
+  | 'in_iface'
+  | 'host'
+  | 'id'
+
 export type AlertProtos = {
   proto: string[]
   app_proto: string[]

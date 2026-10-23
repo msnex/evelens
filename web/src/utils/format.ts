@@ -1,6 +1,14 @@
 const pad = (value: number, length = 2) =>
   value.toString().padStart(length, '0')
 
+export function formatCount(value: string, locale: string): string {
+  try {
+    return BigInt(value).toLocaleString(locale)
+  } catch {
+    return value
+  }
+}
+
 export function formatTimestamp(value: string): string {
   if (!value) {
     return '--'

@@ -1,4 +1,4 @@
-import { SearchOutlined } from '@ant-design/icons'
+import { ExportOutlined, SearchOutlined } from '@ant-design/icons'
 import { App as AntdApp, Button, Input, InputNumber, Select, Tag } from 'antd'
 import { Fragment, useState } from 'react'
 import { useI18n } from '../../i18n/index.ts'
@@ -30,6 +30,7 @@ type AlertFilterBarProps = {
   categoryOptions: string[]
   optionsLoading: boolean
   onSearch: (filter: AlertFilter | null) => boolean
+  onExport: () => void
   onRemove: (key: string) => void
 }
 
@@ -40,6 +41,7 @@ export function AlertFilterBar({
   categoryOptions,
   optionsLoading,
   onSearch,
+  onExport,
   onRemove,
 }: AlertFilterBarProps) {
   const { t } = useI18n()
@@ -240,13 +242,18 @@ export function AlertFilterBar({
 
         <div className="alert-filter-value">{renderValueInput()}</div>
 
-        <Button
-          type="primary"
-          icon={<SearchOutlined />}
-          onClick={handleSearch}
-        >
-          {t('filter.search')}
-        </Button>
+        <div className="alert-filter-actions">
+          <Button
+            type="primary"
+            icon={<SearchOutlined />}
+            onClick={handleSearch}
+          >
+            {t('filter.search')}
+          </Button>
+          <Button icon={<ExportOutlined />} onClick={onExport}>
+            {t('export.button')}
+          </Button>
+        </div>
       </div>
 
       {filters.length > 0 && (
