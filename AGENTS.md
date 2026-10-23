@@ -46,3 +46,16 @@ cargo test --workspace --all-targets
 ## Web 前端
 
 - 国际化：简体中文（默认）、英文，支持客户端语言自动检测与切换持久化
+- 测试用例：关键功能模块需要增加单元测试，业务功能增加E2E测试
+
+### 单元测试
+
+```bash
+pnpm --prefix web test:unit
+```
+
+### E2E 测试
+
+```bash
+pnpm --prefix web test:e2e
+```
