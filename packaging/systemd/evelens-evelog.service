@@ -1,0 +1,13 @@
+[Unit]
+Description=evelens log collector Service
+After=network-online.target
+
+[Service]
+User=evelens
+Group=evelens
+ExecStart=/opt/evelens/evelog/bin/evelog -c /opt/evelens/evelog/etc/evelog.toml
+Restart=on-failure
+RestartSec=30s
+
+[Install]
+WantedBy=multi-user.target

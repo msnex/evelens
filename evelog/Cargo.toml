@@ -2,6 +2,33 @@
 name = "evelog"
 version = "0.1.0"
 edition = "2024"
+description = "evelens eve-log collector for Suricata"
+authors = ["msnex <macroshadow@foxmail.com>"]
+license = "GPL-2.0-only"
+
+[package.metadata.deb]
+name = "evelens-evelog"
+maintainer = "msnex <macroshadow@foxmail.com>"
+copyright = "2026, msnex"
+license-file = ["../LICENSE", "0"]
+extended-description = "Collects Suricata eve-log events from Redis or a file and inserts them into ClickHouse."
+section = "net"
+priority = "optional"
+depends = "$auto"
+maintainer-scripts = "../packaging/maintscripts"
+conf-files = ["/opt/evelens/evelog/etc/evelog.toml"]
+assets = [
+    ["target/release/evelog", "opt/evelens/evelog/bin/evelog", "755"],
+    ["evelog.toml", "opt/evelens/evelog/etc/evelog.toml", "644"],
+]
+
+[package.metadata.deb.systemd-units]
+unit-scripts = "../packaging/systemd"
+unit-name = "evelens-evelog"
+enable = true
+start = true
+restart-after-upgrade = true
+stop-on-upgrade = true
 
 [dependencies]
 anyhow = { workspace = true }
