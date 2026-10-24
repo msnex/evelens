@@ -2,6 +2,34 @@
 name = "console"
 version = "0.1.0"
 edition = "2024"
+description = "evelens web console"
+authors = ["msnex <macroshadow@foxmail.com>"]
+license = "GPL-2.0-only"
+
+[package.metadata.deb]
+name = "evelens-console"
+maintainer = "msnex <macroshadow@foxmail.com>"
+copyright = "2026, msnex"
+license-file = ["../LICENSE", "0"]
+extended-description = "Web console for evelens. Serves the React frontend and provides APIs"
+section = "net"
+priority = "optional"
+depends = "$auto"
+maintainer-scripts = "../packaging/maintscripts"
+conf-files = ["/opt/evelens/console/etc/console.toml"]
+assets = [
+    ["target/release/console", "opt/evelens/console/bin/console", "755"],
+    ["../web/dist/**/*", "opt/evelens/console/web/dist/", "644"],
+    ["console.toml", "opt/evelens/console/etc/console.toml", "644"],
+]
+
+[package.metadata.deb.systemd-units]
+unit-scripts = "../packaging/systemd"
+unit-name = "evelens-console"
+enable = true
+start = true
+restart-after-upgrade = true
+stop-on-upgrade = true
 
 [dependencies]
 anyhow = { workspace = true }

@@ -1,0 +1,13 @@
+[Unit]
+Description=evelens console Service
+After=network-online.target
+
+[Service]
+User=evelens
+Group=evelens
+ExecStart=/opt/evelens/console/bin/console -c /opt/evelens/console/etc/console.toml
+Restart=on-failure
+RestartSec=30s
+
+[Install]
+WantedBy=multi-user.target
